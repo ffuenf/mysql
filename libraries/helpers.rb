@@ -254,6 +254,8 @@ EOSQL
         @pkginfo.set['debian']['6']['5.1']['server_package'] = 'mysql-server-5.1'
         @pkginfo.set['debian']['7']['5.5']['client_package'] = %w(mysql-client libmysqlclient-dev)
         @pkginfo.set['debian']['7']['5.5']['server_package'] = 'mysql-server-5.5'
+        @pkginfo.set['debian']['7']['5.6']['client_package'] = %w(mysql-client libmysqlclient-dev)
+        @pkginfo.set['debian']['7']['5.6']['server_package'] = 'mysql-server-5.6'
         @pkginfo.set['debian']['jessie/sid']['5.5']['client_package'] = %w(mysql-client libmysqlclient-dev)
         @pkginfo.set['debian']['jessie/sid']['5.5']['server_package'] = 'mysql-server-5.5'
         @pkginfo.set['fedora']['20']['5.5']['client_package'] = %w(community-mysql community-mysql-devel)
@@ -384,7 +386,7 @@ EOSQL
       return '5.5' if node['platform_family'] == 'debian' && node['platform_version'] == '14.04'
       return '5.5' if node['platform_family'] == 'debian' && node['platform_version'] == '14.10'
       return '5.5' if node['platform_family'] == 'debian' && node['platform_version'] == 'jessie/sid'
-      return '5.5' if node['platform_family'] == 'debian' && node['platform_version'].to_i == 7
+      return '5.6' if node['platform_family'] == 'debian' && node['platform_version'].to_i == 7
       return '5.5' if node['platform_family'] == 'fedora'
       return '5.5' if node['platform_family'] == 'freebsd'
       return '5.5' if node['platform_family'] == 'omnios'
