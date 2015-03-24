@@ -1,10 +1,10 @@
 name 'mysql'
 maintainer 'Chef Software, Inc.'
-maintainer_email 'cookbooks@getchef.com'
+maintainer_email 'cookbooks@chef.io'
 license 'Apache 2.0'
-description 'Provides mysql_service and mysql_client resources'
+description 'Provides mysql_service, mysql_config, and mysql_client resources'
 
-version '5.3.6'
+version '6.0.17'
 
 supports 'amazon'
 supports 'redhat'
@@ -15,6 +15,7 @@ supports 'debian'
 supports 'ubuntu'
 supports 'smartos'
 supports 'omnios'
-supports 'freebsd'
+supports 'suse'
 
 depends 'yum-mysql-community'
+depends 'smf'
