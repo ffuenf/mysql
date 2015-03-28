@@ -1,6 +1,18 @@
 mysql Cookbook CHANGELOG
 ========================
 
+v6.0.20 (2015-03-27)
+--------------------
+- #318 - Fixing Upstart pre-start script to handle custom socket paths
+
+v6.0.19 (2015-03-25)
+--------------------
+- Adding support for Amazon Linux 2015.03
+
+v6.0.18 (2015-03-24)
+--------------------
+- Adding support for 5.6 and 5.7 packages from dotdeb repos on Debian 7
+
 v6.0.17 (2015-03-13)
 --------------------
 - Updated for MySQL 5.7.6.
