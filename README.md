@@ -1,6 +1,9 @@
 MySQL Cookbook
 =====================
 
+[![Build Status](https://travis-ci.org/chef-cookbooks/mysql.svg?branch=master)](https://travis-ci.org/chef-cookbooks/mysql)
+[![Cookbook Version](https://img.shields.io/cookbook/v/mysql.svg)](https://supermarket.chef.io/cookbooks/mysql)
+
 The Mysql Cookbook is a library cookbook that provides resource primitives
 (LWRPs) for use in recipes. It is designed to be a reference example for
 creating highly reusable cross-platform cookbooks.
@@ -29,11 +32,11 @@ The following platforms have been tested with Test Kitchen:
 |----------------+-----+-----+-----+-----+-----|
 | debian-7       |     |     | X   |     |     |
 |----------------+-----+-----+-----+-----+-----|
-| ubuntu-10.04   |     | X   |     |     |     |
-|----------------+-----+-----+-----+-----+-----|
 | ubuntu-12.04   |     |     | X   |     |     |
 |----------------+-----+-----+-----+-----+-----|
 | ubuntu-14.04   |     |     | X   | X   |     |
+|----------------+-----+-----+-----+-----+-----|
+| ubuntu-15.04   |     |     |     | X   |     |
 |----------------+-----+-----+-----+-----+-----|
 | centos-5       |   X | X   | X   | X   | X   |
 |----------------+-----+-----+-----+-----+-----|
@@ -43,13 +46,9 @@ The following platforms have been tested with Test Kitchen:
 |----------------+-----+-----+-----+-----+-----|
 | amazon         |     |     | X   | X   | X   |
 |----------------+-----+-----+-----+-----+-----|
-| fedora-20      |     |     | X   | X   | X   |
+| fedora-21      |     |     | X   | X   | X   |
 |----------------+-----+-----+-----+-----+-----|
-| suse-11.3      |     |     | X   |     |     |
-|----------------+-----+-----+-----+-----+-----|
-| omnios-151006  |     |     | X   | X   |     |
-|----------------+-----+-----+-----+-----+-----|
-| smartos-14.3.0 |     |     | X   | X   |     |
+| fedora-22      |     |     | X   | X   | X   |
 |----------------+-----+-----+-----+-----+-----|
 ```
 
@@ -68,19 +67,86 @@ depends 'mysql', '~> 6.0'
 Then, in a recipe:
 
 ```ruby
-mysql_service 'default' do
+mysql_service 'foo' do
+  port '3306'
+  version '5.5'
+  initial_root_password 'change me'
+  action [:create, :start]
+end
+```
+
+The service name on the OS is `mysql-foo`. You can manually start and
+stop it with `service mysql-foo start` and `service mysql-foo stop`.
+
+The configuration file is at `/etc/mysql-foo/my.cnf`. It contains the
+minimum options to get the service running. It looks like this.
+
+```
+# Chef generated my.cnf for instance mysql-foo
+
+[client]
+default-character-set          = utf8
+port                           = 3306
+socket                         = /var/run/mysql-foo/mysqld.sock
+
+[mysql]
+default-character-set          = utf8
+
+[mysqld]
+user                           = mysql
+pid-file                       = /var/run/mysql-foo/mysqld.pid
+socket                         = /var/run/mysql-foo/mysqld.sock
+port                           = 3306
+datadir                        = /var/lib/mysql-foo
+tmpdir                         = /tmp
+log-error                      = /var/log/mysql-foo/error.log
+!includedir /etc/mysql-foo/conf.d
+
+[mysqld_safe]
+socket                         = /var/run/mysql-foo/mysqld.sock
+```
+
+You can put extra configuration into the conf.d directory by using the
+`mysql_config` resource, like this:
+
+```ruby
+mysql_service 'foo' do
   port '3306'
   version '5.5'
   initial_root_password 'change me'
   action [:create, :start]
 end
 
-mysql_config 'default' do
-  source 'mysite.cnf.erb'
-  notifies :restart, 'mysql_service[default]'
+mysql_config 'foo' do
+  source 'my_extra_settings.erb'
+  notifies :restart, 'mysql_service[foo]'
   action :create
 end
 ```
+
+You are responsible for providing `my_extra_settings.erb` in your own
+cookbook's templates folder.
+
+Connecting with the mysql CLI command
+-------------------------------------
+Logging into the machine and typing `mysql` with no extra arguments
+will fail. You need to explicitly connect over the socket with `mysql
+-S /var/run/mysql-foo/mysqld.sock`, or over the network with `mysql -h
+127.0.0.1`
+
+Upgrading from older version of the mysql cookbook
+--------------------------------------------------
+- It is strongly recommended that you rebuild the machine from
+  scratch. This is easy if you have your `data_dir` on a dedicated
+  mount point. If you *must* upgrade in-place, follow the instructions
+  below.
+
+- The 6.x series supports multiple service instances on a single
+  machine. It dynamically names the support directories and service
+  names. `/etc/mysql becomes /etc/mysql-instance_name`. Other support
+  directories in `/var` `/run` etc work the same way. Make sure to
+  specify the `data_dir` property on the `mysql_service` resource to
+  point to the old `/var/lib/mysql` directory.
 
 Resources Overview
 ------------------
@@ -108,7 +174,7 @@ omitted when used in recipes designed to build containers.
 mysql_service 'default' do
   version '5.7'
   bind_address '0.0.0.0'
-  port '3306'  
+  port '3306'
   data_dir '/data'
   initial_root_password 'Ch4ng3me'
   action [:create, :start]
@@ -125,6 +191,8 @@ to reference is `mysql_service[name]`, not `service[mysql]`.
 - `data_dir` - determines where the actual data files are kept
 on the machine. This is useful when mounting external storage. When
 omitted, it will default to the platform's native location.
+
+- `error_log` - Tunable location of the error_log
 
 - `initial_root_password` - allows the user to specify the initial
   root password for mysql when initializing new databases.
@@ -150,6 +218,14 @@ omitted, it will default to the platform's native location.
   that particular address. If the address is "0.0.0.0" (IPv4) or "::" (IPv6), the
   server accepts TCP/IP connections on all IPv4 or IPv6 interfaces.
 
+- `mysqld_options` - A key value hash of options to be rendered into
+  the main my.cnf. WARNING - It is highly recommended that you use the
+  `mysql_config` resource instead of sending extra config into a
+  `mysql_service` resource. This will allow you to set up
+  notifications and subscriptions between the service and its
+  configuration. That being said, this can be useful for adding extra
+  options needed for database initialization at first run.
+
 - `port` - determines the listen port for the mysqld service. When
   omitted, it will default to '3306'.
 
@@ -159,10 +235,14 @@ omitted, it will default to the platform's native location.
 - `run_user` - The name of the system user the `mysql_service` should
   run as. Defaults to 'mysql'.
 
+- `pid_file` - Tunable location of the pid file.
+
 - `socket` - determines where to write the socket file for the
   `mysql_service` instance. Useful when configuring clients on the
   same machine to talk over socket and skip the networking stack.
   Defaults to a calculated value based on platform and instance name.
+
+- `tmp_dir` - Tunable location of the tmp_dir
 
 - `version` - allows the user to select from the versions available
   for the platform, where applicable. When omitted, it will install
@@ -186,28 +266,28 @@ but you can specify one if your platform support it.
 mysql_service[instance-1] do
   port '1234'
   data_dir '/mnt/lottadisk'
-  provider Chef::Provider::MysqlService::Sysvinit
+  provider Chef::Provider::MysqlServiceSysvinit
   action [:create, :start]
 end
 ```
 
-- `Chef::Provider::MysqlService` - Configures everything needed t run
+- `Chef::Provider::MysqlServiceBase` - Configures everything needed t run
 a MySQL service except the platform service facility. This provider
 should never be used directly. The `:start`, `:stop`, `:restart`, and
 `:reload` actions are stubs meant to be overridden by the providers
 below.
 
-- `Chef::Provider::MysqlService::Smf` - Starts a `mysql_service` using
+- `Chef::Provider::MysqlServiceSmf` - Starts a `mysql_service` using
 the Service Management Facility, used by Solaris and IllumOS. Manages
 the FMRI and method script.
 
-- `Chef::Provider::MysqlService::Systemd` - Starts a `mysql_service`
+- `Chef::Provider::MysqlServiceSystemd` - Starts a `mysql_service`
 using SystemD. Manages the unit file and activation state
 
-- `Chef::Provider::MysqlService::Sysvinit` - Starts a `mysql_service`
+- `Chef::Provider::MysqlServiceSysvinit` - Starts a `mysql_service`
 using SysVinit. Manages the init script and status.
 
-- `Chef::Provider::MysqlService::Upstart` - Starts a `mysql_service`
+- `Chef::Provider::MysqlServiceUpstart` - Starts a `mysql_service`
 using Upstart. Manages job definitions and status.
 
 ### mysql_config
@@ -255,7 +335,7 @@ end
 #### Actions
 - `:create` - Renders the template to disk at a path calculated using
   the instance parameter.
-  
+
 - `:delete` - Deletes the file from the conf.d directory calculated
   using the instance parameter.
 
@@ -288,7 +368,7 @@ end
 
 ### mysql_client
 The `mysql_client` resource manages the MySQL client binaries and
-development libraries. 
+development libraries.
 
 It is an example of a "singleton" resource. Declaring two
 `mysql_client` resources on a machine usually won't yield two separate
@@ -304,7 +384,7 @@ end
 
 #### Parameters
 - `package_name` - An array of packages to be installed. Defaults to a
-  value looked up in an internal map.  
+  value looked up in an internal map.
 
 - `package_version` - Specific versions of the package to install,
   passed onto the underlying package manager. Defaults to `nil`.
@@ -312,7 +392,7 @@ end
 - `version` - Major MySQL version number of client packages. Only
   valid on for platforms that support multiple versions, such as RHEL
   via Software Collections and OmniOS.
-  
+
 #### Actions
 - `:create` - Installs the client software
 - `:delete` - Removes the client software
@@ -416,11 +496,11 @@ and adjust the settings with node attributes.
 - `recipe[yum-centos::default]` from the Supermarket
   https://supermarket.chef.io/cookbooks/yum-centos
   https://github.com/chef-cookbooks/yum-centos
-  
+
 - `recipe[yum-mysql-community::default]` from the Supermarket
   https://supermarket.chef.io/cookbooks/yum-mysql-community
   https://github.com/chef-cookbooks/yum-mysql-community
-  
+
 ### The mysql command line doesn't work
 
 If you log into the machine and type `mysql`, you may see an error
@@ -430,11 +510,11 @@ like this one:
 
 This is because MySQL is hardcoded to read the defined default my.cnf
 file, typically at /etc/my.cnf, and this LWRP deletes it to prevent
-overlap among multiple MySQL configurations. 
+overlap among multiple MySQL configurations.
 
 To connect to the socket from the command line, check the socket in the relevant my.cnf file and use something like this:
 
-`mysql -S /var/run/mysql-default/mysqld.sock -Pwhatever`
+`mysql -S /var/run/mysql-foo/mysqld.sock -Pwhatever`
 
 Or to connect over the network, use something like this:
 connect over the network..

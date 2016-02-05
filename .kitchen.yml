@@ -1,39 +1,76 @@
+---
 driver:
-  name: vagrant
-  customize:
-    memory: 1024
+  name: dokken
+  chef_version: 12.5.1
+  privileged: true # because Docker and SystemD/Upstart
+
+transport:
+  name: dokken
 
 provisioner:
-  name: chef_zero
+  name: dokken
+
+verifier:
+  root_path: '/opt/verifier'
+  sudo: false
 
 platforms:
-  - name: centos-5.10
-    run_list:
-    - recipe[selinux::disabled]
-  - name: centos-6.6
-    run_list:
-    - recipe[selinux::disabled]
-  - name: centos-7.0
-    run_list:
-    - recipe[selinux::disabled]
-  - name: debian-7.4
-    run_list:
-      - recipe[apt]
-  - name: fedora-20
-  - name: ubuntu-14.04
-    run_list:
-      - recipe[apt]
-  - name: freebsd-9.2
-    run_list:
-      - recipe[freebsd::portsnap]
-  - name: freebsd-10.0 # unsupported until Chef 11.14.0
-  - name: omnios-151006
-    driver:
-      box: omnios-r151006j-r1
-      box_url: http://omnios.omniti.com/media/OmniOS_r151008j-r1.box
-    run_list:
-      - recipe[ips-omniti]
- 
+- name: debian-8
+  driver:
+    image: debian:8
+    pid_one_command: /bin/systemd
+
+- name: centos-5
+  driver:
+    image: centos:5
+
+- name: centos-6
+  driver:
+    image: centos:6
+    intermediate_instructions:
+      - RUN yum -y install tar which initscripts
+
+- name: centos-7
+  driver:
+    image: centos:7
+    intermediate_instructions:
+      - RUN yum clean all
+      - RUN yum -y install net-tools lsof
+    pid_one_command: /usr/lib/systemd/systemd
+
+- name: fedora-21
+  driver:
+    image: fedora:21
+    intermediate_instructions:
+    - RUN yum clean all
+    pid_one_command: /usr/lib/systemd/systemd
+    intermediate_instructions:
+      - RUN yum -y install tar
+
+- name: ubuntu-12.04
+  driver:
+    image: ubuntu-upstart:12.04
+    pid_one_command: /sbin/init
+    intermediate_instructions:
+      - RUN /usr/bin/apt-get update
+      - RUN /usr/bin/apt-get install apt-transport-https net-tools -y
+
+- name: ubuntu-14.04
+  driver:
+    image: ubuntu-upstart:14.04
+    pid_one_command: /sbin/init
+    intermediate_instructions:
+      - RUN /usr/bin/apt-get update
+      - RUN /usr/bin/apt-get install apt-transport-https net-tools -y
+
+- name: ubuntu-15.04
+  driver:
+    image: ubuntu:15.04
+    pid_one_command: /bin/systemd
+    intermediate_instructions:
+      - RUN /usr/bin/apt-get update
+      - RUN /usr/bin/apt-get install apt-transport-https net-tools -y
+
 suites:
   #
   # service
@@ -42,7 +79,7 @@ suites:
     run_list:
     - recipe[mysql_service_test::single]
     includes: [
-      'centos-5.10'
+      'centos-5.8'
     ]
     attributes:
       mysql:
@@ -52,9 +89,8 @@ suites:
     run_list:
     - recipe[mysql_service_test::single]
     includes: [
-      'centos-5.10',
-      'centos-6.6',
-      'ubuntu-10.04'
+      'centos-5',
+      'centos-6'
     ]
     attributes:
       mysql:
@@ -64,16 +100,11 @@ suites:
     run_list:
     - recipe[mysql_service_test::single]
     includes: [
-      'centos-5.10',
-      'centos-6.6',
-      'centos-7.0',
-      'amazon-2014.09',
-      'fedora-20',
-      'suse-11.3',
-      'debian-7.4',
+      'centos-5',
+      'centos-6',
+      'centos-7',
+      'ubuntu-12.04',
       'ubuntu-14.04',
-      'omnios-151006',
-      'omnios-freebsd-9.2',
     ]
     attributes:
       mysql:
@@ -83,14 +114,12 @@ suites:
     run_list:
     - recipe[mysql_service_test::single]
     includes: [
-      'centos-5.10',
-      'centos-6.6',
-      'redhat-6.6',
-      'centos-7.0',
-      'amazon-2014.09',
-      'fedora-20',
-      'omnios-151006',
-      'smartos-14.3.0'
+      'centos-5',
+      'centos-6',
+      'centos-7',
+      'fedora-21',
+      'ubuntu-14.04',
+      'ubuntu-15.04'
     ]
     attributes:
       mysql:
@@ -100,12 +129,12 @@ suites:
     run_list:
     - recipe[mysql_service_test::single]
     includes: [
-      'centos-5.10',
-      'centos-6.6',
-      'redhat-6.6',
-      'centos-7.0',
-      'amazon-2014.09',
-      'fedora-20'
+      'centos-5',
+      'centos-6',
+      'centos-7',
+      'redhat-6',
+      'redhat-7',
+      'fedora-21'
     ]
     attributes:
       mysql:
@@ -115,7 +144,7 @@ suites:
     run_list:
     - recipe[mysql_service_test::multi]
     includes: [
-      'centos-5.10'
+      'centos-5'
     ]
     attributes:
       mysql:
@@ -129,8 +158,7 @@ suites:
     run_list:
     - recipe[mysql_service_test::multi]
     includes: [
-      'centos-5.10',
-      'ubuntu-10.04'
+      'centos-5.8'
     ]
     attributes:
       mysql:
@@ -144,20 +172,11 @@ suites:
     run_list:
     - recipe[mysql_service_test::multi]
     includes: [
-      'centos-5.10',
-      'centos-6.6',
-      'redhat-6.6',
-      'centos-7.0',
-      'amazon-2014.09',
-      'fedora-20',
-      'suse-11.3',
-      'debian-7.4',
-      'debian-7.4',
+      'centos-5',
+      'centos-6',
+      'centos-7',
       'ubuntu-12.04',
-      'ubuntu-13.10',
       'ubuntu-14.04',
-      'omnios-151006',
-      'smartos-14.3.0'
     ]
     attributes:
       mysql:
@@ -171,14 +190,12 @@ suites:
     run_list:
     - recipe[mysql_service_test::multi]
     includes: [
-      'centos-5.10',
-      'centos-6.6',
-      'redhat-6.6',
-      'centos-7.0',
-      'fedora-20',
-      'amazon-2014.09',
-      'omnios-151006',
-      'smartos-14.3.0'
+      'centos-5',
+      'centos-6',
+      'centos-7',
+      'fedora-21',
+      'ubuntu-14.04',
+      'ubuntu-15.04'
     ]
     attributes:
       mysql:
@@ -192,12 +209,10 @@ suites:
     run_list:
     - recipe[mysql_service_test::multi]
     includes: [
-      'centos-5.10',
-      'centos-6.6',
-      'redhat-6.6',
-      'centos-7.0',
-      'fedora-20',
-      'amazon-2014.09'
+      'centos-5',
+      'centos-6',
+      'centos-7',
+      'fedora-21',
     ]
     attributes:
       mysql:
@@ -217,7 +232,7 @@ suites:
       mysql:
        version: '5.0'
     includes: [
-      'centos-5.10'
+      'centos-5'
     ]
 
   - name: client51
@@ -227,9 +242,8 @@ suites:
       mysql:
        version: '5.1'
     includes: [
-      'centos-5.10',
-      'centos-6.6',
-      'ubuntu-10.04'
+      'centos-5',
+      'centos-6'
     ]
 
   - name: client55
@@ -239,20 +253,11 @@ suites:
       mysql:
        version: '5.5'
     includes: [
-      'centos-5.10',
-      'centos-6.6',
-      'redhat-6.6',
-      'centos-7.0',
-      'amazon-2014.09',
-      'fedora-20',
-      'suse-11.3',
-      'debian-7.4',
-      'debian-7.4',
+      'centos-5',
+      'centos-6',
+      'centos-7',
       'ubuntu-12.04',
-      'ubuntu-13.10',
       'ubuntu-14.04',
-      'omnios-151006',
-      'smartos-14.3.0'
     ]
 
   - name: client56
@@ -262,14 +267,12 @@ suites:
       mysql:
        version: '5.6'
     includes: [
-      'centos-5.10',
-      'centos-6.6',
-      'redhat-6.6',
-      'centos-7.0',
-      'amazon-2014.09',
-      'fedora-20',
-      'omnios-151006',
-      'smartos-14.3.0'
+      'centos-5',
+      'centos-6',
+      'centos-7',
+      'fedora-21',
+      'ubuntu-14.04',
+      'ubuntu-15.04'
     ]
 
   - name: client57
@@ -279,12 +282,10 @@ suites:
       mysql:
        version: '5.7'
     includes: [
-      'centos-5.10',
-      'centos-6.6',
-      'redhat-6.6',
-      'centos-7.0',
-      'amazon-2014.09',
-      'fedora-20'
+      'centos-5',
+      'centos-6',
+      'centos-7',
+      'fedora-21'
     ]
 
   #
@@ -294,7 +295,7 @@ suites:
     run_list:
     - recipe[mysql_config_test]
     includes: [
-      'centos-5.10'
+      'centos-5'
     ]
     attributes:
       mysql:
@@ -304,8 +305,7 @@ suites:
     run_list:
     - recipe[mysql_config_test]
     includes: [
-      'centos-5.10',
-      'ubuntu-10.04'
+      'centos-5'
     ]
     attributes:
       mysql:
@@ -315,20 +315,11 @@ suites:
     run_list:
     - recipe[mysql_config_test]
     includes: [
-      'centos-5.10',
-      'centos-6.6',
-      'redhat-6.6',
-      'centos-7.0',
-      'amazon-2014.09',
-      'fedora-20',
-      'suse-11.3',
-      'debian-7.4',
-      'debian-7.4',
+      'centos-5',
+      'centos-6',
+      'centos-7',
       'ubuntu-12.04',
-      'ubuntu-13.10',
-      'ubuntu-14.04',
-      'omnios-151006',
-      'smartos-14.3.0'
+      'ubuntu-14.04'
     ]
     attributes:
       mysql:
@@ -338,14 +329,12 @@ suites:
     run_list:
     - recipe[mysql_config_test]
     includes: [
-      'centos-5.10',
-      'centos-6.6',
-      'redhat-6.6',
-      'centos-7.0',
-      'amazon-2014.09',
-      'fedora-20',
-      'omnios-151006',
-      'smartos-14.3.0'
+      'centos-5',
+      'centos-6',
+      'centos-7',
+      'fedora-21',
+      'ubuntu-14.04',
+      'ubuntu-15.04'
     ]
     attributes:
       mysql:
@@ -355,12 +344,12 @@ suites:
     run_list:
     - recipe[mysql_config_test]
     includes: [
-      'centos-5.10',
-      'centos-6.6',
-      'redhat-6.6',
-      'centos-7.0',
-      'fedora-20',
-      'amazon-2014.09'
+      'centos-5',
+      'centos-6',
+      'centos-7',
+      'redhat-6',
+      'redhat-7',
+      'fedora-21'
     ]
     attributes:
       mysql:
@@ -373,16 +362,11 @@ suites:
     run_list:
     - recipe[mysql_replication_test]
     includes: [
-      'centos-5.10',
-      'centos-6.6',
-      'centos-7.0',
-      'amazon-2014.09',
-      'fedora-20',
-      'suse-11.3',
-      'debian-7.4',
-      'ubuntu-10.04',
+      'centos-5',
+      'centos-6',
+      'centos-7',
+      'fedora-21',
       'ubuntu-12.04',
       'ubuntu-14.04',
-      'omnios-151006',
-      'smartos-14.3.0'
+      'ubuntu-15.04'
     ]
